@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Vault - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .card { background: #1a1a2e; padding: 40px; border-radius: 12px; width: 380px; box-shadow: 0 0 30px rgba(99,102,241,0.2); }
+        h2 { color: #a78bfa; text-align: center; margin-bottom: 8px; font-size: 24px; }
+        p { color: #6b7280; text-align: center; margin-bottom: 28px; font-size: 14px; }
+        input { width: 100%; padding: 12px; margin-bottom: 16px; border-radius: 8px; border: 1px solid #374151; background: #111827; color: white; font-size: 14px; }
+        button { width: 100%; padding: 12px; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        button:hover { background: #4f46e5; }
+        #error { color: #f87171; text-align: center; margin-top: 12px; font-size: 14px; display: none; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2> Secure Vault</h2>
+    <p>Sign in to access your files</p>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Sign In</button>
+    <p id="error"></p>
+    <div style="text-align:center; margin-top:16px; font-size:14px; color:#6b7280;">
+        Don't have an account? <a href="/register" style="color:#a78bfa; text-decoration:none;">Register</a>
+    </div>
+</div>
+<script>
+    async function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('role', data.role);
+            window.location.href = '/dashboard';
+        } else {
+            const err = document.getElementById('error');
+            err.style.display = 'block';
+            err.textContent = data.message || 'Invalid email or password';
+        }
+    }
+</script>
+</body>
+</html>

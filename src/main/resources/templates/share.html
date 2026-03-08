@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Shared File</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .card { background: #1a1a2e; padding: 40px; border-radius: 12px; text-align: center; width: 400px; }
+        h2 { color: #a78bfa; margin-bottom: 16px; }
+        p { color: #6b7280; margin-bottom: 24px; }
+        button { background: #6366f1; color: white; border: none; padding: 12px 32px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .error { color: #f87171; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>🔐 Shared File</h2>
+    <p id="info">Click below to download the shared file</p>
+    <button id="dlBtn" onclick="download()">⬇ Download File</button>
+</div>
+<script>
+    const parts = window.location.pathname.split('/share/');
+    const token = parts.length > 1 ? parts[1] : '';
+    console.log('Token extracted:', token);
+
+    async function download() {
+        if (!token) {
+            document.getElementById('info').textContent = 'Invalid share link!';
+            document.getElementById('info').className = 'error';
+            return;
+        }
+        document.getElementById('info').textContent = 'Downloading...';
+        try {
+            const res = await fetch('/api/share/' + token);
+            console.log('Response status:', res.status);
+            if (res.ok) {
+                const blob = await res.blob();
+                const cd = res.headers.get('Content-Disposition');
+                const name = cd && cd.includes('filename=') ? cd.split('filename=')[1].replace(/"/g, '') : 'download';
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                document.getElementById('info').textContent = 'Download started!';
+            } else {
+                document.getElementById('info').textContent = 'Link expired or already used!';
+                document.getElementById('info').className = 'error';
+            }
+        } catch (err) {
+            console.error('Error:', err);
+            document.getElementById('info').textContent = 'Something went wrong!';
+            document.getElementById('info').className = 'error';
+        }
+    }
+</script>
+</body>
+</html>

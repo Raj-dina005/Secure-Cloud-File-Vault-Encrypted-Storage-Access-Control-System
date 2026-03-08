@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Vault - Register</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .card { background: #1a1a2e; padding: 40px; border-radius: 12px; width: 380px; box-shadow: 0 0 30px rgba(99,102,241,0.2); }
+        h2 { color: #a78bfa; text-align: center; margin-bottom: 8px; font-size: 24px; }
+        p { color: #6b7280; text-align: center; margin-bottom: 28px; font-size: 14px; }
+        input { width: 100%; padding: 12px; margin-bottom: 16px; border-radius: 8px; border: 1px solid #374151; background: #111827; color: white; font-size: 14px; }
+        button { width: 100%; padding: 12px; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        button:hover { background: #4f46e5; }
+        .login-link { text-align: center; margin-top: 16px; font-size: 14px; color: #6b7280; }
+        .login-link a { color: #a78bfa; text-decoration: none; }
+        #message { text-align: center; margin-top: 12px; font-size: 14px; display: none; }
+        .error { color: #f87171; }
+        .success { color: #34d399; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>🔐 Secure Vault</h2>
+    <p>Create your account</p>
+    <input type="text" id="fullName" placeholder="Full Name" />
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="register()">Create Account</button>
+    <div class="login-link">Already have an account? <a href="/login">Sign in</a></div>
+    <p id="message"></p>
+</div>
+<script>
+    async function register() {
+        const fullName = document.getElementById('fullName').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        if (!fullName || !email || !password) {
+            showMessage('Please fill in all fields!', 'error');
+            return;
+        }
+
+        const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fullName, email, password })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            showMessage('Account created! Redirecting...', 'success');
+            setTimeout(() => window.location.href = '/login', 1500);
+        } else {
+            showMessage(data.message || 'Registration failed!', 'error');
+        }
+    }
+
+    function showMessage(msg, type) {
+        const el = document.getElementById('message');
+        el.textContent = msg;
+        el.className = type;
+        el.style.display = 'block';
+    }
+</script>
+</body>
+</html>

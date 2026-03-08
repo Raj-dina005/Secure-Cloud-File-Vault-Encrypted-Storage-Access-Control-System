@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Vault - Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: white; }
+        .navbar { background: #1a1a2e; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #374151; }
+        .navbar h1 { color: #a78bfa; font-size: 20px; }
+        .navbar button { background: #374151; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+        .upload-box { background: #1a1a2e; border: 2px dashed #374151; border-radius: 12px; padding: 32px; text-align: center; margin-bottom: 32px; }
+        .upload-box input { display: none; }
+        .upload-box label { background: #6366f1; color: white; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .upload-box p { color: #6b7280; margin-top: 12px; font-size: 13px; }
+        #uploadBtn { background: #6366f1; color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; margin-top: 12px; display: none; }
+        .files-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .files-header h2 { color: #e5e7eb; font-size: 18px; }
+        table { width: 100%; border-collapse: collapse; background: #1a1a2e; border-radius: 12px; overflow: hidden; }
+        th { background: #111827; padding: 14px 16px; text-align: left; color: #9ca3af; font-size: 13px; }
+        td { padding: 14px 16px; border-top: 1px solid #374151; font-size: 14px; color: #e5e7eb; }
+        .btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; margin-right: 6px; }
+        .btn-download { background: #059669; color: white; }
+        .btn-share { background: #6366f1; color: white; }
+        .btn-delete { background: #dc2626; color: white; }
+        .empty { text-align: center; padding: 40px; color: #6b7280; }
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #059669; color: white; padding: 12px 20px; border-radius: 8px; display: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="navbar">
+    <h1>🔐 Secure Vault</h1>
+    <button onclick="logout()">Logout</button>
+    <button onclick="deleteAccount()" style="background:#dc2626; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; margin-left:8px;">Delete Account</button>
+</div>
+<div class="container">
+    <div class="upload-box">
+        <input type="file" id="fileInput" onchange="fileSelected()" />
+        <label for="fileInput">📁 Choose File</label>
+        <p id="fileName">No file selected</p>
+        <button id="uploadBtn" onclick="uploadFile()">⬆ Upload</button>
+    </div>
+    <div class="files-header">
+        <h2>Your Files</h2>
+        <button id="auditBtn" onclick="window.location.href='/admin'" style="display:none; background:#6366f1; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">
+            👑 Admin Panel
+        </button>
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th>File Name</th>
+            <th>Size</th>
+            <th>Uploaded</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody id="fileList">
+        <tr><td colspan="4" class="empty">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/login';
+
+    async function loadFiles() {
+        const res = await fetch('/api/files', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (res.status === 403) { window.location.href = '/login'; return; }
+        const files = await res.json();
+        const tbody = document.getElementById('fileList');
+        if (files.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty">No files uploaded yet</td></tr>';
+            return;
+        }
+        tbody.innerHTML = files.map(f => `
+            <tr>
+                <td>${f.fileName}</td>
+                <td>${(f.fileSize / 1024).toFixed(1)} KB</td>
+                <td>${new Date(f.uploadedAt).toLocaleDateString()}</td>
+                <td>
+                    <button class="btn btn-download" onclick="downloadFile(${f.id}, '${f.fileName}')">Download</button>
+                    <button class="btn btn-share" onclick="shareFile(${f.id})">Share</button>
+                    <button class="btn btn-delete" onclick="deleteFile(${f.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function fileSelected() {
+        const file = document.getElementById('fileInput').files[0];
+        document.getElementById('fileName').textContent = file ? file.name : 'No file selected';
+        document.getElementById('uploadBtn').style.display = file ? 'inline-block' : 'none';
+    }
+
+    async function uploadFile() {
+        const file = document.getElementById('fileInput').files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/files/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: formData });
+        if (res.ok) { showToast('File uploaded!'); loadFiles(); document.getElementById('fileInput').value = ''; document.getElementById('fileName').textContent = 'No file selected'; document.getElementById('uploadBtn').style.display = 'none'; }
+    }
+
+    async function downloadFile(id, name) {
+        const res = await fetch(`/api/files/download/${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+    }
+
+    async function shareFile(id) {
+        const res = await fetch(`/api/share/create/${id}?expiryHours=24&oneTimeUse=false`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+        const data = await res.json();
+        const link = `${window.location.origin}/share/${data.token}`;
+        navigator.clipboard.writeText(link);
+        showToast('Share link copied to clipboard!');
+    }
+
+    async function deleteFile(id) {
+        if (!confirm('Delete this file?')) return;
+        await fetch(`/api/files/delete/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+        showToast('File deleted!'); loadFiles();
+    }
+
+    function logout() { localStorage.removeItem('token'); localStorage.removeItem('role'); window.location.href = '/login'; }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    if (localStorage.getItem('role') === 'ADMIN') {
+    document.getElementById('auditBtn').style.display = 'block';
+}
+async function deleteAccount() {
+    if (!confirm('Delete your account and ALL your files permanently?')) return;
+    const res = await fetch('/api/auth/delete-account', {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        window.location.href = '/login';
+    } else {
+        showToast('Failed to delete account!');
+    }
+}
+
+    loadFiles();
+</script>
+</body>
+</html>
